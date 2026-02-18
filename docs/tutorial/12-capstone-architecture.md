@@ -1,6 +1,10 @@
 # Chapter 5.1: Capstone Architecture Overview
 
-We're going to build a **Multiplex HTTP Proxy** - a switchboard that dynamically spins up Express servers and routes requests to them based on hostname.
+Time to put it all together.
+
+We're going to build a **Multiplex HTTP Proxy**—think of it as a telephone switchboard from the 1950s, but for HTTP. Requests come in, the operator (our code) figures out who they're for, spins up a connection if needed, and patches them through.
+
+The twist: every connection, every server, every background task will be properly managed by Effection. Press Ctrl+C and watch the whole building power down gracefully—no orphaned processes, no leaked connections.
 
 ---
 
@@ -55,6 +59,7 @@ We're going to build a **Multiplex HTTP Proxy** - a switchboard that dynamically
 ### 1. Express Server Resource (`useExpressServer`)
 
 A resource that:
+
 - Creates an Express app
 - Listens on a given port
 - Provides the app and server to the caller
@@ -63,6 +68,7 @@ A resource that:
 ### 2. Server Pool Resource (`useServerPool`)
 
 A resource that:
+
 - Maintains a Map of hostname → server info
 - Has a `getOrCreate(hostname)` method
 - Spawns new servers as child tasks
@@ -71,6 +77,7 @@ A resource that:
 ### 3. Switchboard Resource (`useSwitchboard`)
 
 A resource that:
+
 - Listens on the main port (8000)
 - Uses `http-proxy` to forward requests
 - Calls ServerPool to get/create backend servers
@@ -80,16 +87,16 @@ A resource that:
 
 ## Effection Concepts Used
 
-| Concept | Usage |
-|---------|-------|
-| `main()` | Entry point, handles Ctrl+C |
+| Concept      | Usage                                     |
+| ------------ | ----------------------------------------- |
+| `main()`     | Entry point, handles Ctrl+C               |
 | `resource()` | Express servers, server pool, switchboard |
-| `spawn()` | Creating new server tasks |
-| `useScope()` | Running operations from Express handlers |
-| `Context` | Sharing ServerPool with operations |
-| `ensure()` | Cleanup of servers |
-| `Channel` | Logging events |
-| `suspend()` | Keeping the main process alive |
+| `spawn()`    | Creating new server tasks                 |
+| `useScope()` | Running operations from Express handlers  |
+| `Context`    | Sharing ServerPool with operations        |
+| `ensure()`   | Cleanup of servers                        |
+| `Channel`    | Logging events                            |
+| `suspend()`  | Keeping the main process alive            |
 
 ---
 
@@ -98,7 +105,7 @@ A resource that:
 ```
 src/
 ├── server-resource.ts    # useExpressServer resource
-├── server-pool.ts        # useServerPool resource  
+├── server-pool.ts        # useServerPool resource
 ├── switchboard.ts        # useSwitchboard resource
 ├── types.ts              # Shared types
 start.ts                  # Entry point

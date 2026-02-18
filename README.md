@@ -2,27 +2,45 @@
 
 A hands-on tutorial for learning [Effection](https://frontside.com/effection) - structured concurrency for JavaScript.
 
+[![Validated](https://img.shields.io/badge/Effection-v4%20Validated-green)](https://github.com/thefrontside/effection)
+
 ## What is Effection?
 
 Effection brings structured concurrency to JavaScript. Unlike Promises, every async operation has a clear parent-child relationship, guaranteed cleanup, and proper cancellation support.
+
+## Validation Status
+
+This tutorial has been validated against:
+
+- [Effection AGENTS.md contract](https://github.com/thefrontside/effection/blob/v4/AGENTS.md) (API correctness)
+- [Official Effection documentation](https://frontside.com/effection) (best practices)
+- [Frontside voice guidelines](https://github.com/thefrontside/frontside.com/blob/main/AGENTS.md) (writing style)
+
+### Fixes Applied
+
+- `call()` → `until()` for awaiting existing promises (contract compliance)
+- Type safety improvements (removed `null as any` patterns)
+- Added `scoped()` error boundary documentation with fire doors metaphor
+- Added Signal vs Channel decision guide with whiteboard/inbox metaphor
+- Added `call()` vs `until()` section with restaurant metaphor
 
 ## Tutorial Structure
 
 The tutorial is organized in `docs/tutorial/`:
 
-| Chapter | Topic |
-|---------|-------|
-| 01 | The Problem with Promises |
-| 02 | Operations |
-| 03 | Actions |
-| 04 | Spawn |
-| 05 | Combinators (all, race) |
-| 06 | Resources |
-| 07 | Channels & Streams |
-| 08 | Signals |
-| 09 | Context |
-| 10 | Scope API |
-| 11 | Capstone Architecture |
+| Chapter | Topic                     |
+| ------- | ------------------------- |
+| 01      | The Problem with Promises |
+| 02      | Operations                |
+| 03      | Actions                   |
+| 04      | Spawn                     |
+| 05      | Combinators (all, race)   |
+| 06      | Resources                 |
+| 07      | Channels & Streams        |
+| 08      | Signals                   |
+| 09      | Context                   |
+| 10      | Scope API                 |
+| 11      | Capstone Architecture     |
 
 ## Setup
 
@@ -111,3 +129,25 @@ docs/ts/
 ├── timeout-pattern.ts
 └── xhr-fetch.ts
 ```
+
+## Contributing
+
+When contributing to this tutorial:
+
+1. **Follow the Effection contract** - See [AGENTS.md](https://github.com/thefrontside/effection/blob/v4/AGENTS.md) for API correctness rules
+2. **Use Frontside voice** - Conversational-expert tone, sustained metaphors, brief conclusions
+3. **Test all examples** - Every code block should be runnable with `npx tsx`
+4. **Validate changes** - Check against official Effection docs before submitting
+
+### Key Patterns to Follow
+
+| Pattern             | Correct                            | Incorrect                           |
+| ------------------- | ---------------------------------- | ----------------------------------- |
+| Existing promises   | `yield* until(promise)`            | `yield* call(() => promise)`        |
+| New async work      | `yield* call(async () => {...})`   | N/A                                 |
+| Error boundaries    | `yield* scoped(function*() {...})` | Uncontained errors                  |
+| Operation messaging | `Channel`                          | `Signal` (use Signal for callbacks) |
+
+## License
+
+MIT
