@@ -1,33 +1,41 @@
 // src/types.ts
 // Shared types for the multiplex proxy
 
-import type { Server } from 'http';
-import type { Express } from 'express';
-import type { Task, Stream } from 'effection';
+import type { Server } from "http";
+import type { Express } from "express";
+import type { Task, Stream } from "effection";
 
 /**
- * Information about a running Express server
+ * Information about a server being created (before fully initialized)
+ * Used internally during the two-phase server construction process.
  */
-export interface ServerInfo {
+export interface PendingServerInfo {
   hostname: string;
   port: number;
+  startedAt: Date;
+}
+
+/**
+ * Information about a fully running Express server.
+ * All fields are guaranteed to be populated once the server is ready.
+ */
+export interface ServerInfo extends PendingServerInfo {
   app: Express;
   server: Server;
   task: Task<void>;
-  startedAt: Date;
 }
 
 /**
  * Server events emitted by the pool (lspx-style signal events)
  */
-export type ServerEvent = 
-  | { type: 'started'; hostname: string; port: number }
-  | { type: 'stopped'; hostname: string }
-  | { type: 'error'; hostname: string; error: Error; message: string };
+export type ServerEvent =
+  | { type: "started"; hostname: string; port: number }
+  | { type: "stopped"; hostname: string }
+  | { type: "error"; hostname: string; error: Error; message: string };
 
 /**
  * The server pool interface exposed to consumers.
- * 
+ *
  * Refactored to use Promise-based API (not Operation) for easier integration
  * with Express handlers and other async code.
  */
@@ -37,26 +45,26 @@ export interface ServerPool {
    * Returns a Promise for easy use in async handlers.
    */
   getOrCreate(hostname: string): Promise<ServerInfo>;
-  
+
   /**
    * Get server info if it exists (sync)
    */
   get(hostname: string): ServerInfo | undefined;
-  
+
   /**
    * List all running servers (sync)
    */
   list(): ServerInfo[];
-  
+
   /**
    * Shutdown a specific server
    */
   shutdown(hostname: string): Promise<void>;
-  
+
   /**
    * Event stream for server lifecycle events.
    * Subscribe to receive notifications when servers start/stop/error.
-   * 
+   *
    * @example
    * ```typescript
    * yield* spawn(function*() {
@@ -90,9 +98,9 @@ export interface AppServerConfig {
  * Log event types (deprecated - use ServerEvent instead)
  * @deprecated Use ServerEvent instead
  */
-export type LogEvent = 
-  | { type: 'server:started'; hostname: string; port: number }
-  | { type: 'server:stopped'; hostname: string }
-  | { type: 'request:received'; hostname: string; method: string; path: string }
-  | { type: 'request:proxied'; hostname: string; port: number }
-  | { type: 'error'; message: string; error?: Error };
+export type LogEvent =
+  | { type: "server:started"; hostname: string; port: number }
+  | { type: "server:stopped"; hostname: string }
+  | { type: "request:received"; hostname: string; method: string; path: string }
+  | { type: "request:proxied"; hostname: string; port: number }
+  | { type: "error"; message: string; error?: Error };
