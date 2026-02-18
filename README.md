@@ -1,12 +1,124 @@
-# Effection Tutorial
+# The World's Greatest Effection Tutorial
 
-A hands-on tutorial for learning [Effection](https://frontside.com/effection) - structured concurrency for JavaScript.
+**Learn structured concurrency by building a multiplex HTTP proxy**
 
 [![Validated](https://img.shields.io/badge/Effection-v4%20Validated-green)](https://github.com/thefrontside/effection)
 
-## What is Effection?
+---
 
-Effection brings structured concurrency to JavaScript. Unlike Promises, every async operation has a clear parent-child relationship, guaranteed cleanup, and proper cancellation support.
+## What You'll Learn
+
+Ever written async code that leaked connections, orphaned timers, or left servers running after Ctrl+C? You're not alone. JavaScript's `async/await` feels great—until it doesn't.
+
+Effection is a structured concurrency library that fixes this by guaranteeing:
+
+1. **No operation runs longer than its parent** - automatic cleanup
+2. **Every operation exits fully** - `finally` blocks always run
+3. **It's just JavaScript** - use `if`, `for`, `while`, `try/catch` as normal
+
+By the end of this tutorial, you'll build a **multiplex HTTP proxy** that dynamically spawns Express servers and routes requests through a switchboard - all managed by Effection.
+
+---
+
+## Tutorial Structure
+
+### Part 1: Foundation - "Why Effection Exists"
+
+| Chapter                                    | Topic                        | Run Examples                                  |
+| ------------------------------------------ | ---------------------------- | --------------------------------------------- |
+| [01](./chapters/01-problem-with-promises/) | The Problem with Promises    | `npx tsx chapters/01-*/leaky-race.ts`         |
+| [02](./chapters/02-operations/)            | Operations                   | `npx tsx chapters/02-*/countdown.ts`          |
+| [03](./chapters/03-actions/)               | Actions - Bridging Callbacks | `npx tsx chapters/03-*/sleep-with-logging.ts` |
+
+### Part 2: Concurrency - "Doing Many Things at Once"
+
+| Chapter                          | Topic                             | Run Examples                               |
+| -------------------------------- | --------------------------------- | ------------------------------------------ |
+| [04](./chapters/04-spawn/)       | Spawn - Child Operations          | `npx tsx chapters/04-*/spawn-example.ts`   |
+| [05](./chapters/05-combinators/) | Combinators - all() and race()    | `npx tsx chapters/05-*/timeout-pattern.ts` |
+| [06](./chapters/06-resources/)   | Resources - Long-running Services | `npx tsx chapters/06-*/resource-socket.ts` |
+
+### Part 3: Communication - "Operations Talking to Each Other"
+
+| Chapter                       | Topic                           | Run Examples                                      |
+| ----------------------------- | ------------------------------- | ------------------------------------------------- |
+| [07](./chapters/07-channels/) | Channels                        | `npx tsx chapters/07-*/channel-basics.ts`         |
+| [08](./chapters/08-signals/)  | Signals - Events from Callbacks | `npx tsx chapters/08-*/signal-basics.ts`          |
+| [09](./chapters/09-streams/)  | Streams - The Unifying Concept  | `npx tsx chapters/09-*/stream-vs-subscription.ts` |
+| [10](./chapters/10-context/)  | Context - Sharing Values        | `npx tsx chapters/10-*/context-basics.ts`         |
+
+### Part 4: Integration
+
+| Chapter                        | Topic                                                   |
+| ------------------------------ | ------------------------------------------------------- |
+| [11](./chapters/11-scope-api/) | Scope API - Embedding Effection in Express, React, etc. |
+
+### Part 5: Capstone - Multiplex HTTP Proxy
+
+| Section                                                  | Topic                                |
+| -------------------------------------------------------- | ------------------------------------ |
+| [Overview](./capstone/)                                  | Architecture and what we're building |
+| [Server Resource](./capstone/docs/01-server-resource.md) | Wrapping Express as a resource       |
+| [Server Pool](./capstone/docs/02-server-pool.md)         | Managing dynamic servers             |
+| [Switchboard](./capstone/docs/03-switchboard.md)         | Routing requests                     |
+| [Final Assembly](./capstone/docs/04-final-assembly.md)   | Putting it all together              |
+
+---
+
+## Quick Start
+
+```bash
+# Clone and install
+git clone https://github.com/thefrontside/hydra.git
+cd hydra
+npm install
+
+# Start the tutorial
+cd chapters/01-problem-with-promises
+cat README.md
+
+# Run an example
+npx tsx leaky-race.ts
+
+# Run the capstone project
+cd ../../capstone
+npx tsx start.ts
+```
+
+---
+
+## Prerequisites
+
+- Solid JavaScript/TypeScript knowledge
+- Familiarity with `async/await`
+- Basic understanding of Node.js
+- Experience with Express is helpful but not required
+
+---
+
+## Repository Structure
+
+```
+hydra/
+├── chapters/                 # Tutorial chapters (concepts + examples)
+│   ├── 01-problem-with-promises/
+│   │   ├── README.md         # Chapter content
+│   │   ├── leaky-race.ts     # Runnable example
+│   │   └── ...
+│   ├── 02-operations/
+│   ├── ...
+│   └── 11-scope-api/
+│
+├── capstone/                 # The multiplex proxy project
+│   ├── README.md             # Architecture overview
+│   ├── docs/                 # Implementation guides
+│   ├── src/                  # Source code
+│   └── start.ts              # Entry point
+│
+└── README.md                 # You are here
+```
+
+---
 
 ## Validation Status
 
@@ -16,119 +128,7 @@ This tutorial has been validated against:
 - [Official Effection documentation](https://frontside.com/effection) (best practices)
 - [Frontside voice guidelines](https://github.com/thefrontside/frontside.com/blob/main/AGENTS.md) (writing style)
 
-### Fixes Applied
-
-- `call()` → `until()` for awaiting existing promises (contract compliance)
-- Type safety improvements (removed `null as any` patterns)
-- Added `scoped()` error boundary documentation with fire doors metaphor
-- Added Signal vs Channel decision guide with whiteboard/inbox metaphor
-- Added `call()` vs `until()` section with restaurant metaphor
-
-## Tutorial Structure
-
-The tutorial is organized in `docs/tutorial/`:
-
-| Chapter | Topic                     |
-| ------- | ------------------------- |
-| 01      | The Problem with Promises |
-| 02      | Operations                |
-| 03      | Actions                   |
-| 04      | Spawn                     |
-| 05      | Combinators (all, race)   |
-| 06      | Resources                 |
-| 07      | Channels & Streams        |
-| 08      | Signals                   |
-| 09      | Context                   |
-| 10      | Scope API                 |
-| 11      | Capstone Architecture     |
-
-## Setup
-
-```bash
-npm install
-```
-
-## Running Examples
-
-All runnable TypeScript examples are in `docs/ts/`. Run any example with:
-
-```bash
-npx tsx docs/ts/<example>.ts
-```
-
-Examples:
-
-```bash
-# Basic operations
-npx tsx docs/ts/countdown.ts
-npx tsx docs/ts/slow-add.ts
-
-# Spawning concurrent tasks
-npx tsx docs/ts/spawn-example.ts
-npx tsx docs/ts/parallel-fetch.ts
-
-# Combinators
-npx tsx docs/ts/effection-all.ts
-npx tsx docs/ts/timeout-pattern.ts
-
-# Resources
-npx tsx docs/ts/resource-socket.ts
-npx tsx docs/ts/http-server-resource.ts
-
-# Channels & Streams
-npx tsx docs/ts/channel-basics.ts
-npx tsx docs/ts/event-bus.ts
-
-# Signals
-npx tsx docs/ts/signal-basics.ts
-
-# Context
-npx tsx docs/ts/context-basics.ts
-npx tsx docs/ts/request-context.ts
-```
-
-## Available Examples
-
-```
-docs/ts/
-├── all-with-error.ts
-├── api-fallback.ts
-├── await-event-horizon.ts
-├── channel-basics.ts
-├── chat-room.ts
-├── children-halted.ts
-├── composed-resources.ts
-├── context-basics.ts
-├── context-scoped.ts
-├── countdown.ts
-├── database-context.ts
-├── each-pattern.ts
-├── effection-all.ts
-├── effection-race.ts
-├── emitter-events.ts
-├── ensure-example.ts
-├── error-propagation.ts
-├── event-bus.ts
-├── file-watcher.ts
-├── fire-and-forget.ts
-├── guaranteed-cleanup.ts
-├── http-server-resource.ts
-├── keyboard-stream.ts
-├── leaky-race.ts
-├── leaky-timers.ts
-├── logger-context.ts
-├── multiple-subscribers.ts
-├── parallel-countdown.ts
-├── parallel-fetch.ts
-├── request-context.ts
-├── resource-socket.ts
-├── signal-basics.ts
-├── sleep-with-logging.ts
-├── slow-add.ts
-├── spawn-example.ts
-├── timeout-pattern.ts
-└── xhr-fetch.ts
-```
+---
 
 ## Contributing
 
@@ -147,6 +147,14 @@ When contributing to this tutorial:
 | New async work      | `yield* call(async () => {...})`   | N/A                                 |
 | Error boundaries    | `yield* scoped(function*() {...})` | Uncontained errors                  |
 | Operation messaging | `Channel`                          | `Signal` (use Signal for callbacks) |
+
+---
+
+## Let's Begin!
+
+Start with [Chapter 01: The Problem with Promises](./chapters/01-problem-with-promises/)
+
+---
 
 ## License
 
