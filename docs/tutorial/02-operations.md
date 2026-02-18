@@ -13,7 +13,7 @@ When you call an async function, it starts executing immediately:
 ```typescript
 // eager-promise.ts
 async function sayHello(): Promise<void> {
-  console.log('Hello World!');
+  console.log("Hello World!");
 }
 
 sayHello(); // Logs immediately, even without await!
@@ -30,7 +30,7 @@ In contrast, calling a generator function does... nothing:
 ```typescript
 // lazy-generator.ts
 function* sayHello(): Generator<void, void, void> {
-  console.log('Hello World!');
+  console.log("Hello World!");
 }
 
 sayHello(); // Nothing happens!
@@ -48,15 +48,16 @@ To actually execute an operation, use the `run()` function:
 
 ```typescript
 // run-example.ts
-import { run } from 'effection';
+import { run } from "effection";
 
-run(function*() {
-  console.log('Hello World!');
+run(function* () {
+  console.log("Hello World!");
 });
 // Output: Hello World!
 ```
 
 The `run()` function:
+
 1. Takes an operation (a generator function)
 2. Starts executing it
 3. Returns a **Task** (which is both an Operation and a Promise)
@@ -65,11 +66,11 @@ Because the task is also a Promise, you can `await` it:
 
 ```typescript
 // run-with-await.ts
-import { run } from 'effection';
+import { run } from "effection";
 
 try {
-  await run(function*() {
-    throw new Error('oh no!');
+  await run(function* () {
+    throw new Error("oh no!");
   });
 } catch (error) {
   console.error(error); // Error: oh no!
@@ -84,10 +85,10 @@ For most programs, use `main()` instead of `run()`:
 
 ```typescript
 // main-example.ts
-import { main } from 'effection';
+import { main } from "effection";
 
-await main(function*() {
-  console.log('Starting...');
+await main(function* () {
+  console.log("Starting...");
   // your program here
 });
 ```
@@ -108,12 +109,12 @@ The `yield*` keyword is Effection's equivalent of `await`. Use it to run one ope
 
 ```typescript
 // yield-star-example.ts
-import { main, sleep } from 'effection';
+import { main, sleep } from "effection";
 
-await main(function*() {
-  console.log('Starting...');
+await main(function* () {
+  console.log("Starting...");
   yield* sleep(1000);
-  console.log('One second later!');
+  console.log("One second later!");
 });
 ```
 
@@ -127,23 +128,24 @@ Operations compose beautifully. You can call operations from operations:
 
 ```typescript
 // countdown.ts
-import type { Operation } from 'effection';
-import { main, sleep } from 'effection';
+import type { Operation } from "effection";
+import { main, sleep } from "effection";
 
 function* countdown(n: number): Operation<void> {
   for (let i = n; i > 0; i--) {
     console.log(i);
     yield* sleep(1000);
   }
-  console.log('Liftoff!');
+  console.log("Liftoff!");
 }
 
-await main(function*() {
+await main(function* () {
   yield* countdown(3);
 });
 ```
 
 Output:
+
 ```
 3
 2
@@ -161,15 +163,15 @@ Operations can return values, just like async functions:
 
 ```typescript
 // slow-add.ts
-import type { Operation } from 'effection';
-import { main, sleep } from 'effection';
+import type { Operation } from "effection";
+import { main, sleep } from "effection";
 
 function* slowAdd(a: number, b: number): Operation<number> {
   yield* sleep(1000);
   return a + b;
 }
 
-await main(function*() {
+await main(function* () {
   const result: number = yield* slowAdd(2, 3);
   console.log(`Result: ${result}`); // Result: 5
 });
@@ -185,34 +187,34 @@ Inside operations, you can use all normal JavaScript constructs:
 
 ```typescript
 // regular-js.ts
-import type { Operation } from 'effection';
-import { main, sleep } from 'effection';
+import type { Operation } from "effection";
+import { main, sleep } from "effection";
 
 function* somethingDangerous(): Operation<void> {
-  throw new Error('Danger!');
+  throw new Error("Danger!");
 }
 
-await main(function*() {
+await main(function* () {
   // Variables
   let count = 0;
-  
+
   // Conditionals
   if (Math.random() > 0.5) {
     count = 10;
   }
-  
+
   // Loops
   while (count > 0) {
     console.log(count);
     count--;
     yield* sleep(100);
   }
-  
+
   // Try/catch
   try {
     yield* somethingDangerous();
   } catch (error) {
-    console.log('Caught:', error);
+    console.log("Caught:", error);
   }
 });
 ```
@@ -227,18 +229,18 @@ Create a file called `countdown.ts`:
 
 ```typescript
 // countdown.ts
-import type { Operation } from 'effection';
-import { main, sleep } from 'effection';
+import type { Operation } from "effection";
+import { main, sleep } from "effection";
 
 function* countdown(seconds: number): Operation<void> {
   for (let i = seconds; i > 0; i--) {
     console.log(`${i}...`);
     yield* sleep(1000);
   }
-  console.log('Done!');
+  console.log("Done!");
 }
 
-await main(function*() {
+await main(function* () {
   yield* countdown(5);
 });
 ```
@@ -249,15 +251,92 @@ Now try pressing Ctrl+C while it's counting. Notice that it stops immediately - 
 
 ---
 
+## Bridging Promises: `call()` vs `until()`
+
+When you need to work with existing Promise-based code, Effection provides two helpers. The distinction matters:
+
+### The Restaurant Ticket Metaphor
+
+Think of it like ordering food:
+
+- **`call()`** = **Placing a new order** - You hand over a function that creates a promise, and Effection runs it fresh
+- **`until()`** = **Waiting at the pickup counter** - The order is already cooking; you're just waiting for it to be ready
+
+### `call()` - For Invoking Async Functions
+
+Use `call()` when you want to _invoke_ an async function or create a fresh promise:
+
+```typescript
+import { main, call } from "effection";
+
+// Invoking an async function
+await main(function* () {
+  const response = yield* call(async () => {
+    return await fetch("https://api.example.com/data");
+  });
+  console.log(response.status);
+});
+
+// Creating a fresh promise each time
+function* waitForLoad(): Operation<void> {
+  yield* call(
+    () =>
+      new Promise((resolve) => {
+        window.addEventListener("load", resolve, { once: true });
+      }),
+  );
+}
+```
+
+### `until()` - For Awaiting Existing Promises
+
+Use `until()` when you already have a promise and want to wait for it:
+
+```typescript
+import { main, until } from "effection";
+
+await main(function* () {
+  // Promise already exists (was created elsewhere)
+  const existingPromise = someLibrary.fetchData();
+
+  // Wait for it with until()
+  const data = yield* until(existingPromise);
+  console.log(data);
+});
+```
+
+### Why Does This Matter?
+
+The distinction becomes critical when you're bridging callbacks or handling coordination between operations:
+
+```typescript
+// WRONG: call() re-invokes the function
+const promise = fetch("/api/data");
+yield * call(() => promise); // Works, but confusing - the fetch already started!
+
+// RIGHT: until() makes the intent clear
+const promise = fetch("/api/data");
+yield * until(promise); // Clear: we're waiting for an existing promise
+```
+
+When in doubt:
+
+- **Promise exists** → `until()`
+- **Need to run a function** → `call()`
+
+---
+
 ## Quick Reference
 
-| Async/Await | Effection |
-|-------------|-----------|
-| `Promise<T>` | `Operation<T>` |
-| `await` | `yield*` |
-| `async function` | `function*` |
-| `new Promise(...)` | `action(...)` |
-| Start implicitly | Must call `run()` or `main()` |
+| Async/Await             | Effection                       |
+| ----------------------- | ------------------------------- |
+| `Promise<T>`            | `Operation<T>`                  |
+| `await`                 | `yield*`                        |
+| `async function`        | `function*`                     |
+| `new Promise(...)`      | `action(...)`                   |
+| `await existingPromise` | `yield* until(existingPromise)` |
+| `await asyncFn()`       | `yield* call(asyncFn)`          |
+| Start implicitly        | Must call `run()` or `main()`   |
 
 ---
 

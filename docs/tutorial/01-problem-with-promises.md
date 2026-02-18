@@ -1,6 +1,8 @@
 # Chapter 1.1: The Problem with Promises
 
-Before we dive into Effection, we need to understand **why it exists**. JavaScript's `async/await` seems great on the surface, but it has fundamental problems that become painful at scale.
+Before we dive into Effection, we need to understand **why it exists**.
+
+JavaScript's `async/await` is like a house with no fire exits—everything looks fine until there's an emergency. The problems aren't obvious at first, but they become painful at scale.
 
 ---
 
@@ -11,16 +13,13 @@ Consider this simple race between two timers:
 ```typescript
 // leaky-race.ts
 async function sleep(ms: number): Promise<void> {
-  await new Promise<void>(resolve => setTimeout(resolve, ms));
+  await new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 async function main(): Promise<void> {
-  console.time('race');
-  await Promise.race([
-    sleep(10),
-    sleep(1000)
-  ]);
-  console.timeEnd('race');
+  console.time("race");
+  await Promise.race([sleep(10), sleep(1000)]);
+  console.timeEnd("race");
 }
 
 main();
@@ -44,9 +43,9 @@ Here's an even scarier problem:
 // await-event-horizon.ts
 async function doWork(): Promise<void> {
   try {
-    await new Promise<void>(resolve => setTimeout(resolve, 100000));
+    await new Promise<void>((resolve) => setTimeout(resolve, 100000));
   } finally {
-    console.log('Cleaning up...');  // Will this run?
+    console.log("Cleaning up..."); // Will this run?
   }
 }
 
@@ -54,12 +53,13 @@ const promise = doWork();
 
 // Simulate user pressing Ctrl+C after 1 second
 setTimeout(() => {
-  console.log('Exiting...');
+  console.log("Exiting...");
   process.exit(0);
 }, 1000);
 ```
 
 **Output**:
+
 ```
 Exiting...
 ```
@@ -107,19 +107,17 @@ Here's the same timer race in Effection:
 
 ```typescript
 // effection-race.ts
-import { main, sleep, race } from 'effection';
+import { main, sleep, race } from "effection";
 
-await main(function*() {
-  console.time('race');
-  yield* race([
-    sleep(10),
-    sleep(1000)
-  ]);
-  console.timeEnd('race');
+await main(function* () {
+  console.time("race");
+  yield* race([sleep(10), sleep(1000)]);
+  console.timeEnd("race");
 });
 ```
 
 **Output**:
+
 ```
 race: 10ms
 ```
@@ -134,13 +132,13 @@ And here's the cleanup example:
 
 ```typescript
 // guaranteed-cleanup.ts
-import { main, sleep } from 'effection';
+import { main, sleep } from "effection";
 
-await main(function*() {
+await main(function* () {
   try {
     yield* sleep(100000);
   } finally {
-    console.log('Cleaning up...');  // ALWAYS runs!
+    console.log("Cleaning up..."); // ALWAYS runs!
   }
 });
 
@@ -166,7 +164,7 @@ Create a file called `leaky-timers.ts` and run it:
 const timers: ReturnType<typeof setTimeout>[] = [];
 
 async function createLeakyTimer(id: number, ms: number): Promise<void> {
-  await new Promise<void>(resolve => {
+  await new Promise<void>((resolve) => {
     const timerId = setTimeout(() => {
       console.log(`Timer ${id} fired after ${ms}ms`);
       resolve();
@@ -176,19 +174,19 @@ async function createLeakyTimer(id: number, ms: number): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  console.log('Starting race...');
-  console.time('total');
-  
+  console.log("Starting race...");
+  console.time("total");
+
   await Promise.race([
     createLeakyTimer(1, 100),
     createLeakyTimer(2, 200),
     createLeakyTimer(3, 500),
     createLeakyTimer(4, 1000),
   ]);
-  
-  console.log('Race finished! But watch what happens...');
-  console.timeEnd('total');
-  
+
+  console.log("Race finished! But watch what happens...");
+  console.timeEnd("total");
+
   // We'd need to manually clean up:
   // timers.forEach(id => clearTimeout(id));
 }
@@ -204,10 +202,12 @@ Notice how all 4 timers fire even though only timer 1 "won" the race. Comment in
 
 ## Key Takeaways
 
+The house with no fire exits:
+
 1. **Promises leak** - `Promise.race()` and `Promise.all()` don't cancel losers
-2. **Finally blocks are not guaranteed** - process exit abandons all pending work
+2. **Finally blocks aren't guaranteed** - process exit abandons pending work (the fire exit is locked)
 3. **Manual cleanup is error-prone** - you'll forget, and you'll get bitten
-4. **Structured concurrency solves this** - operations are bound to their parent's lifetime
+4. **Structured concurrency solves this** - operations are bound to their parent's lifetime (proper fire exits everywhere)
 
 ---
 

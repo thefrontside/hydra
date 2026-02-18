@@ -1,12 +1,12 @@
 # Chapter 3.1: Channels - Communication Between Operations
 
-So far we've dealt with operations that produce a single value. But what about **sequences** of values over time?
+So far our operations have been one-way streets: run, return a value, done. But real applications need **ongoing conversations**—streams of data flowing between concurrent operations.
 
 - Messages between workers
 - Events in an internal event bus
 - Data flowing through a pipeline
 
-Effection has **Channels** for this - a way for operations to communicate with each other.
+Think of a Channel like a hallway intercom system. Operations can broadcast messages, and any operation that's listening gets a copy. Effection's Channels make this communication structured and safe.
 
 ---
 
@@ -16,10 +16,10 @@ A Channel is a pub/sub system for Effection operations. One operation sends mess
 
 ```typescript
 // channel-basics.ts
-import type { Operation, Channel, Subscription } from 'effection';
-import { main, createChannel, spawn, sleep } from 'effection';
+import type { Operation, Channel, Subscription } from "effection";
+import { main, createChannel, spawn, sleep } from "effection";
 
-await main(function*() {
+await main(function* () {
   // Create a channel that sends strings
   const channel: Channel<string, void> = createChannel<string, void>();
 
@@ -28,26 +28,27 @@ await main(function*() {
   const subscription: Subscription<string, void> = yield* channel;
 
   // Send some messages in the background
-  yield* spawn(function*(): Operation<void> {
-    yield* channel.send('hello');
+  yield* spawn(function* (): Operation<void> {
+    yield* channel.send("hello");
     yield* sleep(100);
-    yield* channel.send('world');
+    yield* channel.send("world");
     yield* sleep(100);
-    yield* channel.close();  // Close the channel
+    yield* channel.close(); // Close the channel
   });
 
   // Receive messages
   let result = yield* subscription.next();
   while (!result.done) {
-    console.log('Received:', result.value);
+    console.log("Received:", result.value);
     result = yield* subscription.next();
   }
 
-  console.log('Channel closed');
+  console.log("Channel closed");
 });
 ```
 
 Output:
+
 ```
 Received: hello
 Received: world
@@ -62,19 +63,19 @@ Channels are **not buffered**. If no one is subscribed, messages are dropped:
 
 ```typescript
 // dropped-messages.ts
-import type { Channel, Subscription } from 'effection';
-import { main, createChannel } from 'effection';
+import type { Channel, Subscription } from "effection";
+import { main, createChannel } from "effection";
 
-await main(function*() {
+await main(function* () {
   const channel: Channel<string, void> = createChannel<string, void>();
 
   // Send before subscribing - message is LOST!
-  yield* channel.send('this is lost');
+  yield* channel.send("this is lost");
 
   // Now subscribe
   const subscription: Subscription<string, void> = yield* channel;
 
-  yield* channel.send('this is received');
+  yield* channel.send("this is received");
 
   const result = yield* subscription.next();
   console.log(result.value); // 'this is received'
@@ -89,14 +90,14 @@ Manually calling `next()` is tedious. Use `each` for cleaner iteration:
 
 ```typescript
 // each-pattern.ts
-import type { Operation, Channel } from 'effection';
-import { main, createChannel, spawn, sleep, each } from 'effection';
+import type { Operation, Channel } from "effection";
+import { main, createChannel, spawn, sleep, each } from "effection";
 
-await main(function*() {
+await main(function* () {
   const channel: Channel<number, void> = createChannel<number, void>();
 
   // Producer
-  yield* spawn(function*(): Operation<void> {
+  yield* spawn(function* (): Operation<void> {
     for (let i = 1; i <= 5; i++) {
       yield* channel.send(i);
       yield* sleep(100);
@@ -106,15 +107,16 @@ await main(function*() {
 
   // Consumer with each()
   for (const value of yield* each(channel)) {
-    console.log('Got:', value);
-    yield* each.next();  // REQUIRED!
+    console.log("Got:", value);
+    yield* each.next(); // REQUIRED!
   }
 
-  console.log('Done');
+  console.log("Done");
 });
 ```
 
 Output:
+
 ```
 Got: 1
 Got: 2
@@ -134,24 +136,24 @@ This might seem strange. The reason is that it allows you to do async work betwe
 
 ```typescript
 // async-processing.ts
-import type { Operation, Channel } from 'effection';
-import { main, createChannel, spawn, sleep, each } from 'effection';
+import type { Operation, Channel } from "effection";
+import { main, createChannel, spawn, sleep, each } from "effection";
 
-await main(function*() {
+await main(function* () {
   const channel: Channel<string, void> = createChannel<string, void>();
 
-  yield* spawn(function*(): Operation<void> {
-    yield* channel.send('task-1');
-    yield* channel.send('task-2');
-    yield* channel.send('task-3');
+  yield* spawn(function* (): Operation<void> {
+    yield* channel.send("task-1");
+    yield* channel.send("task-2");
+    yield* channel.send("task-3");
     yield* channel.close();
   });
 
   for (const task of yield* each(channel)) {
-    console.log('Processing:', task);
-    yield* sleep(500);  // Simulate slow processing
-    console.log('Finished:', task);
-    yield* each.next();  // Now request next item
+    console.log("Processing:", task);
+    yield* sleep(500); // Simulate slow processing
+    console.log("Finished:", task);
+    yield* each.next(); // Now request next item
   }
 });
 ```
@@ -166,37 +168,37 @@ Channels support multiple subscribers - each gets their own copy of every messag
 
 ```typescript
 // multiple-subscribers.ts
-import type { Operation, Channel, Subscription } from 'effection';
-import { main, createChannel, spawn, sleep, each } from 'effection';
+import type { Operation, Channel, Subscription } from "effection";
+import { main, createChannel, spawn, sleep, each } from "effection";
 
-await main(function*() {
+await main(function* () {
   const channel: Channel<string, void> = createChannel<string, void>();
 
   // Two subscribers
-  yield* spawn(function*(): Operation<void> {
-    console.log('Subscriber A starting');
+  yield* spawn(function* (): Operation<void> {
+    console.log("Subscriber A starting");
     for (const msg of yield* each(channel)) {
-      console.log('A received:', msg);
+      console.log("A received:", msg);
       yield* each.next();
     }
-    console.log('Subscriber A done');
+    console.log("Subscriber A done");
   });
 
-  yield* spawn(function*(): Operation<void> {
-    console.log('Subscriber B starting');
+  yield* spawn(function* (): Operation<void> {
+    console.log("Subscriber B starting");
     for (const msg of yield* each(channel)) {
-      console.log('B received:', msg);
+      console.log("B received:", msg);
       yield* each.next();
     }
-    console.log('Subscriber B done');
+    console.log("Subscriber B done");
   });
 
   // Give subscribers time to start
   yield* sleep(10);
 
   // Send messages
-  yield* channel.send('hello');
-  yield* channel.send('world');
+  yield* channel.send("hello");
+  yield* channel.send("world");
   yield* channel.close();
 
   yield* sleep(100);
@@ -204,6 +206,7 @@ await main(function*() {
 ```
 
 Output:
+
 ```
 Subscriber A starting
 Subscriber B starting
@@ -225,8 +228,8 @@ Use a channel as an internal event bus:
 
 ```typescript
 // event-bus.ts
-import type { Operation, Channel } from 'effection';
-import { main, createChannel, spawn, sleep, each } from 'effection';
+import type { Operation, Channel } from "effection";
+import { main, createChannel, spawn, sleep, each } from "effection";
 
 interface AppEvent {
   type: string;
@@ -255,7 +258,7 @@ function* analytics(): Operation<void> {
   }
 }
 
-await main(function*() {
+await main(function* () {
   // Start consumers
   yield* spawn(eventLogger);
   yield* spawn(analytics);
@@ -263,15 +266,16 @@ await main(function*() {
   yield* sleep(10);
 
   // Emit some events
-  yield* eventBus.send({ type: 'user.login', payload: { userId: 1 } });
-  yield* eventBus.send({ type: 'page.view', payload: { page: '/home' } });
-  yield* eventBus.send({ type: 'user.login', payload: { userId: 2 } });
+  yield* eventBus.send({ type: "user.login", payload: { userId: 1 } });
+  yield* eventBus.send({ type: "page.view", payload: { page: "/home" } });
+  yield* eventBus.send({ type: "user.login", payload: { userId: 2 } });
 
   yield* sleep(100);
 });
 ```
 
 Output:
+
 ```
 [LOG] user.login: { userId: 1 }
 [ANALYTICS] Event counts: { 'user.login': 1 }
@@ -289,20 +293,20 @@ Channels can pass a final value when closing:
 
 ```typescript
 // close-with-data.ts
-import type { Operation, Channel } from 'effection';
-import { main, createChannel, spawn, sleep } from 'effection';
+import type { Operation, Channel } from "effection";
+import { main, createChannel, spawn, sleep } from "effection";
 
 interface Summary {
   totalMessages: number;
 }
 
-await main(function*() {
+await main(function* () {
   const channel: Channel<string, Summary> = createChannel<string, Summary>();
 
-  yield* spawn(function*(): Operation<void> {
-    yield* channel.send('one');
-    yield* channel.send('two');
-    yield* channel.send('three');
+  yield* spawn(function* (): Operation<void> {
+    yield* channel.send("one");
+    yield* channel.send("two");
+    yield* channel.send("three");
     yield* channel.close({ totalMessages: 3 });
   });
 
@@ -310,11 +314,11 @@ await main(function*() {
 
   let result = yield* subscription.next();
   while (!result.done) {
-    console.log('Message:', result.value);
+    console.log("Message:", result.value);
     result = yield* subscription.next();
   }
 
-  console.log('Summary:', result.value); // { totalMessages: 3 }
+  console.log("Summary:", result.value); // { totalMessages: 3 }
 });
 ```
 
@@ -326,8 +330,8 @@ Create `chat-room.ts`:
 
 ```typescript
 // chat-room.ts
-import type { Operation, Channel } from 'effection';
-import { main, createChannel, spawn, sleep, each } from 'effection';
+import type { Operation, Channel } from "effection";
+import { main, createChannel, spawn, sleep, each } from "effection";
 
 interface ChatMessage {
   user: string;
@@ -335,7 +339,10 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const chatChannel: Channel<ChatMessage, void> = createChannel<ChatMessage, void>();
+const chatChannel: Channel<ChatMessage, void> = createChannel<
+  ChatMessage,
+  void
+>();
 
 function* chatClient(username: string): Operation<void> {
   console.log(`${username} joined the chat`);
@@ -356,20 +363,20 @@ function* sendMessage(user: string, text: string): Operation<void> {
   });
 }
 
-await main(function*() {
+await main(function* () {
   // Start chat clients
-  yield* spawn(() => chatClient('Alice'));
-  yield* spawn(() => chatClient('Bob'));
-  yield* spawn(() => chatClient('Charlie'));
+  yield* spawn(() => chatClient("Alice"));
+  yield* spawn(() => chatClient("Bob"));
+  yield* spawn(() => chatClient("Charlie"));
 
   yield* sleep(10);
 
   // Simulate conversation
-  yield* sendMessage('Alice', 'Hello everyone!');
+  yield* sendMessage("Alice", "Hello everyone!");
   yield* sleep(100);
-  yield* sendMessage('Bob', 'Hi Alice!');
+  yield* sendMessage("Bob", "Hi Alice!");
   yield* sleep(100);
-  yield* sendMessage('Charlie', 'Good morning!');
+  yield* sendMessage("Charlie", "Good morning!");
 
   yield* sleep(200);
 });
@@ -381,11 +388,13 @@ Run it: `npx tsx chat-room.ts`
 
 ## Key Takeaways
 
-1. **Channels are internal pub/sub** - for communication between Effection operations
-2. **Subscribe before sending** - channels don't buffer messages
+Channels are the hallway intercom for your operations:
+
+1. **Channels are internal pub/sub** - structured communication between Effection operations
+2. **Subscribe before sending** - if nobody's listening, messages vanish into the void
 3. **Use `for yield* each`** - cleaner than manual `next()` calls
-4. **Always call `yield* each.next()`** - at the end of each loop iteration
-5. **Multiple subscribers** - each gets their own copy of every message
+4. **Always call `yield* each.next()`** - explicitly request the next message
+5. **Multiple subscribers** - everyone on the intercom hears every message
 
 ---
 
@@ -395,11 +404,11 @@ There's a limitation we haven't addressed. Look at this:
 
 ```typescript
 // This doesn't work!
-await main(function*() {
+await main(function* () {
   const channel = createChannel<MouseEvent, void>();
-  
-  document.addEventListener('click', (event) => {
-    yield* channel.send(event);  // SyntaxError! Can't yield* in a callback
+
+  document.addEventListener("click", (event) => {
+    yield * channel.send(event); // SyntaxError! Can't yield* in a callback
   });
 });
 ```
@@ -407,6 +416,7 @@ await main(function*() {
 `channel.send()` is an **operation** - you can only call it with `yield*`. But callbacks are plain JavaScript functions!
 
 This is a fundamental problem:
+
 - Channels work great when both producer and consumer are Effection operations
 - But external events (DOM clicks, Node.js EventEmitters, timers) come from callbacks
 
@@ -415,7 +425,7 @@ Remember the `firstSuccess` combinator from [Chapter 05](./05-combinators.md)? W
 ```typescript
 const success = createSignal<T, never>();
 // ...
-success.send(value);  // No yield*! It's a plain function call
+success.send(value); // No yield*! It's a plain function call
 ```
 
 That's the key difference. In the next chapter, we'll learn about **Signals** - and finally understand why that solution worked so elegantly.

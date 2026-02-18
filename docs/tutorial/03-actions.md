@@ -1,8 +1,10 @@
 # Chapter 1.3: Actions - Bridging the Callback World
 
-Most JavaScript APIs use callbacks: `setTimeout`, event listeners, XHR, WebSockets. How do we bring these into Effection's world of operations?
+Most JavaScript APIs speak callback. `setTimeout`, event listeners, XHR, WebSockets—they all want you to pass a function that they'll call "later."
 
-The answer is **actions**.
+But Effection speaks generator. How do we translate between these two languages?
+
+The answer is **actions**—the interpreters that let callbacks talk to operations.
 
 ---
 
@@ -13,7 +15,7 @@ You've probably written this pattern before:
 ```typescript
 // promise-sleep.ts
 function sleep(ms: number): Promise<void> {
-  return new Promise<void>(resolve => {
+  return new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
   });
 }
@@ -29,13 +31,13 @@ Effection's `action()` works similarly, but with one critical difference:
 
 ```typescript
 // action-sleep.ts
-import type { Operation } from 'effection';
-import { action } from 'effection';
+import type { Operation } from "effection";
+import { action } from "effection";
 
 function sleep(ms: number): Operation<void> {
   return action((resolve) => {
     const timeoutId = setTimeout(resolve, ms);
-    return () => clearTimeout(timeoutId);  // Cleanup function - required!
+    return () => clearTimeout(timeoutId); // Cleanup function - required!
   });
 }
 ```
@@ -47,14 +49,15 @@ Actions **must** return a cleanup function. This is the magic that prevents leak
 ## The Cleanup Function
 
 The cleanup function is called when:
+
 1. The action resolves (via `resolve()`)
 2. The action rejects (via `reject()`)
 3. The action is halted (parent scope ends)
 
 ```typescript
 // sleep-with-logging.ts
-import type { Operation } from 'effection';
-import { main, action, race } from 'effection';
+import type { Operation } from "effection";
+import { main, action, race } from "effection";
 
 function sleep(ms: number): Operation<void> {
   return action((resolve) => {
@@ -71,13 +74,14 @@ function sleep(ms: number): Operation<void> {
   });
 }
 
-await main(function*() {
+await main(function* () {
   yield* race([sleep(10), sleep(1000)]);
-  console.log('Race done!');
+  console.log("Race done!");
 });
 ```
 
 Output:
+
 ```
 Starting 10ms timer
 Starting 1000ms timer
@@ -97,23 +101,23 @@ Here's how to wrap the native `fetch` API with proper cancellation:
 
 ```typescript
 // xhr-fetch.ts
-import type { Operation } from 'effection';
-import { main, action, race } from 'effection';
+import type { Operation } from "effection";
+import { main, action, race } from "effection";
 
 function* fetchUrl(url: string): Operation<string> {
   return yield* action<string>((resolve, reject) => {
     const controller = new AbortController();
-    
+
     console.log(`Starting request to ${url}`);
-    
+
     fetch(url, { signal: controller.signal })
-      .then(response => response.text())
-      .then(text => {
+      .then((response) => response.text())
+      .then((text) => {
         console.log(`Completed request to ${url}`);
         resolve(text);
       })
-      .catch(err => {
-        if (err.name !== 'AbortError') {
+      .catch((err) => {
+        if (err.name !== "AbortError") {
           reject(err);
         }
       });
@@ -126,12 +130,12 @@ function* fetchUrl(url: string): Operation<string> {
 }
 
 // If you race two fetch operations, the loser's HTTP request is actually cancelled!
-await main(function*() {
+await main(function* () {
   const result: string = yield* race([
-    fetchUrl('https://httpbin.org/delay/1'),
-    fetchUrl('https://httpbin.org/delay/2'),
+    fetchUrl("https://httpbin.org/delay/1"),
+    fetchUrl("https://httpbin.org/delay/2"),
   ]);
-  console.log('Winner:', result.slice(0, 100) + '...');
+  console.log("Winner:", result.slice(0, 100) + "...");
 });
 ```
 
@@ -145,9 +149,9 @@ The `action()` function signature:
 function action<T>(
   executor: (
     resolve: (value: T) => void,
-    reject: (error: Error) => void
-  ) => (() => void)
-): Operation<T>
+    reject: (error: Error) => void,
+  ) => () => void,
+): Operation<T>;
 ```
 
 - `resolve(value)` - Complete the action successfully with a value
@@ -164,12 +168,12 @@ Here's how to wait for a single event:
 
 ```typescript
 // once.ts
-import type { Operation } from 'effection';
-import { main, action } from 'effection';
+import type { Operation } from "effection";
+import { main, action } from "effection";
 
 function once<K extends keyof HTMLElementEventMap>(
   target: HTMLElement,
-  eventName: K
+  eventName: K,
 ): Operation<HTMLElementEventMap[K]> {
   return action((resolve) => {
     const handler = (event: HTMLElementEventMap[K]) => resolve(event);
@@ -198,59 +202,57 @@ Here's a more practical Node.js example:
 
 ```typescript
 // once-node.ts
-import type { Operation } from 'effection';
-import { main, action, sleep } from 'effection';
-import { EventEmitter } from 'events';
+import type { Operation } from "effection";
+import { main, action, sleep } from "effection";
+import { EventEmitter } from "events";
 
-function once<T>(
-  emitter: EventEmitter,
-  eventName: string
-): Operation<T> {
+function once<T>(emitter: EventEmitter, eventName: string): Operation<T> {
   return action<T>((resolve, reject) => {
     const handler = (value: T) => resolve(value);
     const errorHandler = (error: Error) => reject(error);
 
     emitter.on(eventName, handler);
-    emitter.on('error', errorHandler);
+    emitter.on("error", errorHandler);
 
     return () => {
       emitter.off(eventName, handler);
-      emitter.off('error', errorHandler);
+      emitter.off("error", errorHandler);
     };
   });
 }
 
 // Demo showing "once" only captures first event
-await main(function*() {
+await main(function* () {
   const emitter = new EventEmitter();
 
   // Schedule multiple events
   setTimeout(() => {
-    console.log('Emitting: first');
-    emitter.emit('data', { message: 'first' });
+    console.log("Emitting: first");
+    emitter.emit("data", { message: "first" });
   }, 100);
 
   setTimeout(() => {
-    console.log('Emitting: second');
-    emitter.emit('data', { message: 'second' });
+    console.log("Emitting: second");
+    emitter.emit("data", { message: "second" });
   }, 200);
 
   setTimeout(() => {
-    console.log('Emitting: third');
-    emitter.emit('data', { message: 'third' });
+    console.log("Emitting: third");
+    emitter.emit("data", { message: "third" });
   }, 300);
 
   // once() only captures the first event, then cleans up the listener
-  const data: { message: string } = yield* once(emitter, 'data');
-  console.log('Received:', data.message);
+  const data: { message: string } = yield* once(emitter, "data");
+  console.log("Received:", data.message);
 
   // Wait to show other events are emitted but ignored
   yield* sleep(400);
-  console.log('Done - only captured first event');
+  console.log("Done - only captured first event");
 });
 ```
 
 Output:
+
 ```
 Emitting: first
 Received: first
@@ -267,8 +269,8 @@ Use `reject()` to signal errors:
 
 ```typescript
 // load-image.ts
-import type { Operation } from 'effection';
-import { main, action } from 'effection';
+import type { Operation } from "effection";
+import { main, action } from "effection";
 
 function loadImage(url: string): Operation<HTMLImageElement> {
   return action<HTMLImageElement>((resolve, reject) => {
@@ -280,7 +282,7 @@ function loadImage(url: string): Operation<HTMLImageElement> {
     img.src = url;
 
     return () => {
-      img.src = '';  // Cancel loading
+      img.src = ""; // Cancel loading
     };
   });
 }
@@ -303,8 +305,8 @@ Create `my-sleep.ts`:
 
 ```typescript
 // my-sleep.ts
-import type { Operation } from 'effection';
-import { main, action, race } from 'effection';
+import type { Operation } from "effection";
+import { main, action, race } from "effection";
 
 // Implement sleep using action()
 function sleep(ms: number): Operation<void> {
@@ -322,22 +324,19 @@ function sleep(ms: number): Operation<void> {
   });
 }
 
-await main(function*() {
-  console.log('Racing timers...');
+await main(function* () {
+  console.log("Racing timers...");
 
-  yield* race([
-    sleep(100),
-    sleep(500),
-    sleep(1000),
-  ]);
+  yield* race([sleep(100), sleep(500), sleep(1000)]);
 
-  console.log('Race complete!');
+  console.log("Race complete!");
 });
 ```
 
 Run it: `npx tsx my-sleep.ts`
 
 Expected output:
+
 ```
 Racing timers...
 Starting 100ms timer
@@ -368,11 +367,13 @@ For ongoing streams of events (multiple clicks, WebSocket messages), you'll want
 
 ## Key Takeaways
 
-1. **`action()` is like the Promise constructor** - but with mandatory cleanup
+Actions are interpreters between callback-land and generator-land:
+
+1. **`action()` is like the Promise constructor** - but with mandatory cleanup (the interpreter always cleans up after itself)
 2. **Always return a cleanup function** - this is what prevents leaked effects
 3. **Cleanup runs in all cases** - resolve, reject, or halt
-4. **The executor is a regular function** - not a generator (use regular callbacks)
-5. **Actions are for one-time events** - use Signals for streams
+4. **The executor is a regular function** - not a generator (it speaks callback)
+5. **Actions are for one-time events** - use Signals for ongoing streams
 
 ---
 

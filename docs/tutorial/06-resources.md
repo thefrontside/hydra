@@ -1,19 +1,22 @@
 # Chapter 2.3: Resources - Long-Running Managed Services
 
-Actions are great for one-time operations: do something, get a result, clean up. But what about things that need to **stay alive** while you interact with them?
+Actions are like vending machines: put in a request, get back a result, done. But what about things that need to **stay alive** while you interact with them?
 
 - A WebSocket connection you send messages through
 - An HTTP server that handles requests
 - A database connection pool
 - A file watcher
 
-These are **resources** - long-running services that you need to interact with during their lifetime.
+These aren't vending machines—they're more like rental cars. You need them to stick around while you use them, and they need to be returned (cleaned up) when you're done.
+
+These are **resources**: long-running services with managed lifetimes.
 
 ---
 
 ## The Problem: Operations That Block
 
 We want to create a `useSocket()` function that:
+
 1. Creates and connects a socket
 2. Returns the socket to the caller for use
 3. Cleans up the socket when the scope ends
@@ -22,15 +25,21 @@ Let's try building this with what we know so far:
 
 ```typescript
 // blocking-socket.ts (THIS DOESN'T WORK!)
-import type { Operation } from 'effection';
-import { main, action, suspend } from 'effection';
-import { EventEmitter } from 'events';
+import type { Operation } from "effection";
+import { main, action, suspend } from "effection";
+import { EventEmitter } from "events";
 
 // Fake socket for demo
 class FakeSocket extends EventEmitter {
-  connect() { setTimeout(() => this.emit('connect'), 100); }
-  send(msg: string) { console.log('Sending:', msg); }
-  close() { console.log('Socket closed'); }
+  connect() {
+    setTimeout(() => this.emit("connect"), 100);
+  }
+  send(msg: string) {
+    console.log("Sending:", msg);
+  }
+  close() {
+    console.log("Socket closed");
+  }
 }
 
 function* useSocket(): Operation<FakeSocket> {
@@ -39,21 +48,21 @@ function* useSocket(): Operation<FakeSocket> {
 
   // Wait for connection
   yield* action<void>((resolve) => {
-    socket.once('connect', resolve);
+    socket.once("connect", resolve);
     return () => {};
   });
 
   try {
-    yield* suspend();  // Stay alive for cleanup...
+    yield* suspend(); // Stay alive for cleanup...
     return socket;
   } finally {
     socket.close();
   }
 }
 
-await main(function*() {
+await main(function* () {
   const socket = yield* useSocket();
-  socket.send('hello');
+  socket.send("hello");
 });
 ```
 
@@ -82,10 +91,11 @@ await main(function*() {
 The problem: `suspend()` keeps the operation alive (good for cleanup!) but blocks the return (bad for the caller!).
 
 We can't win:
+
 - **Return immediately?** The operation ends, `finally` runs, socket closes before we use it
 - **Suspend to stay alive?** We never return the socket to the caller
 
-We need a way to say: *"Here's the value — now keep me alive until you're done with it."*
+We need a way to say: _"Here's the value — now keep me alive until you're done with it."_
 
 ---
 
@@ -95,29 +105,35 @@ The `resource()` function solves this with a special `provide()` operation:
 
 ```typescript
 // resource-socket.ts
-import type { Operation } from 'effection';
-import { main, resource, action, sleep } from 'effection';
-import { EventEmitter } from 'events';
+import type { Operation } from "effection";
+import { main, resource, action, sleep } from "effection";
+import { EventEmitter } from "events";
 
 // Fake socket for demo
 class FakeSocket extends EventEmitter {
-  connect() { setTimeout(() => this.emit('connect'), 100); }
-  send(msg: string) { console.log('Sending:', msg); }
-  close() { console.log('Socket closed'); }
+  connect() {
+    setTimeout(() => this.emit("connect"), 100);
+  }
+  send(msg: string) {
+    console.log("Sending:", msg);
+  }
+  close() {
+    console.log("Socket closed");
+  }
 }
 
 function useSocket(): Operation<FakeSocket> {
-  return resource<FakeSocket>(function*(provide) {
+  return resource<FakeSocket>(function* (provide) {
     const socket = new FakeSocket();
     socket.connect();
 
     // Wait for connection
     yield* action<void>((resolve) => {
-      socket.once('connect', resolve);
+      socket.once("connect", resolve);
       return () => {};
     });
 
-    console.log('Socket connected!');
+    console.log("Socket connected!");
 
     try {
       // provide() gives the socket to the caller AND suspends
@@ -128,11 +144,11 @@ function useSocket(): Operation<FakeSocket> {
   });
 }
 
-await main(function*() {
+await main(function* () {
   const socket: FakeSocket = yield* useSocket();
 
-  socket.send('hello');
-  socket.send('world');
+  socket.send("hello");
+  socket.send("world");
 
   yield* sleep(100);
 
@@ -141,6 +157,7 @@ await main(function*() {
 ```
 
 Output:
+
 ```
 Socket connected!
 Sending: hello
@@ -217,19 +234,25 @@ Resources compose naturally:
 
 ```typescript
 // composed-resources.ts
-import type { Operation } from 'effection';
-import { main, resource, spawn, sleep } from 'effection';
-import { EventEmitter } from 'events';
+import type { Operation } from "effection";
+import { main, resource, spawn, sleep } from "effection";
+import { EventEmitter } from "events";
 
 // Fake socket
 class FakeSocket extends EventEmitter {
-  connect() { setTimeout(() => this.emit('connect'), 50); }
-  send(msg: string) { console.log('>> Sending:', msg); }
-  close() { console.log('Socket closed'); }
+  connect() {
+    setTimeout(() => this.emit("connect"), 50);
+  }
+  send(msg: string) {
+    console.log(">> Sending:", msg);
+  }
+  close() {
+    console.log("Socket closed");
+  }
 }
 
 function useSocket(): Operation<FakeSocket> {
-  return resource<FakeSocket>(function*(provide) {
+  return resource<FakeSocket>(function* (provide) {
     const socket = new FakeSocket();
     socket.connect();
 
@@ -245,15 +268,15 @@ function useSocket(): Operation<FakeSocket> {
 
 // A socket with automatic heartbeat
 function useHeartbeatSocket(): Operation<FakeSocket> {
-  return resource<FakeSocket>(function*(provide) {
+  return resource<FakeSocket>(function* (provide) {
     // Use another resource!
     const socket: FakeSocket = yield* useSocket();
 
     // Start heartbeat in background
-    yield* spawn(function*(): Operation<void> {
+    yield* spawn(function* (): Operation<void> {
       while (true) {
         yield* sleep(500);
-        socket.send('heartbeat');
+        socket.send("heartbeat");
       }
     });
 
@@ -265,14 +288,14 @@ function useHeartbeatSocket(): Operation<FakeSocket> {
   });
 }
 
-await main(function*() {
+await main(function* () {
   const socket: FakeSocket = yield* useHeartbeatSocket();
 
-  socket.send('hello');
+  socket.send("hello");
 
-  yield* sleep(1200);  // Let some heartbeats happen
+  yield* sleep(1200); // Let some heartbeats happen
 
-  socket.send('goodbye');
+  socket.send("goodbye");
 
   // When main ends:
   // 1. useHeartbeatSocket's spawn is halted (heartbeat stops)
@@ -281,6 +304,7 @@ await main(function*() {
 ```
 
 Output:
+
 ```
 >> Sending: hello
 >> Sending: heartbeat
@@ -295,9 +319,9 @@ Socket closed
 
 ```typescript
 // http-server-resource.ts
-import type { Operation } from 'effection';
-import { main, resource, ensure, suspend } from 'effection';
-import { createServer, Server, IncomingMessage, ServerResponse } from 'http';
+import type { Operation } from "effection";
+import { main, resource, ensure, suspend } from "effection";
+import { createServer, Server, IncomingMessage, ServerResponse } from "http";
 
 interface HttpServer {
   server: Server;
@@ -305,10 +329,10 @@ interface HttpServer {
 }
 
 function useHttpServer(port: number): Operation<HttpServer> {
-  return resource<HttpServer>(function*(provide) {
+  return resource<HttpServer>(function* (provide) {
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.end('Hello from Effection!\n');
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end("Hello from Effection!\n");
     });
 
     // Start listening
@@ -317,7 +341,7 @@ function useHttpServer(port: number): Operation<HttpServer> {
 
     // Ensure cleanup
     yield* ensure(() => {
-      console.log('Closing server...');
+      console.log("Closing server...");
       server.close();
     });
 
@@ -326,11 +350,11 @@ function useHttpServer(port: number): Operation<HttpServer> {
   });
 }
 
-await main(function*() {
+await main(function* () {
   const { port }: HttpServer = yield* useHttpServer(3000);
 
   console.log(`Server running at http://localhost:${port}`);
-  console.log('Press Ctrl+C to stop\n');
+  console.log("Press Ctrl+C to stop\n");
 
   // Keep running until interrupted
   yield* suspend();
@@ -347,16 +371,16 @@ Instead of try/finally, you can use `ensure()`:
 
 ```typescript
 // ensure-example.ts
-import type { Operation } from 'effection';
-import { main, resource, ensure, sleep } from 'effection';
+import type { Operation } from "effection";
+import { main, resource, ensure, sleep } from "effection";
 
 interface Connection {
   query: (sql: string) => string;
 }
 
 function useDatabase(): Operation<Connection> {
-  return resource<Connection>(function*(provide) {
-    console.log('Connecting to database...');
+  return resource<Connection>(function* (provide) {
+    console.log("Connecting to database...");
     yield* sleep(100); // Simulate connection time
 
     const connection: Connection = {
@@ -365,18 +389,18 @@ function useDatabase(): Operation<Connection> {
 
     // ensure() is cleaner than try/finally for simple cleanup
     yield* ensure(() => {
-      console.log('Disconnecting from database...');
+      console.log("Disconnecting from database...");
     });
 
-    console.log('Database connected!');
+    console.log("Database connected!");
     yield* provide(connection);
   });
 }
 
-await main(function*() {
+await main(function* () {
   const db: Connection = yield* useDatabase();
 
-  console.log(db.query('SELECT * FROM users'));
+  console.log(db.query("SELECT * FROM users"));
 
   yield* sleep(100);
 
@@ -385,6 +409,7 @@ await main(function*() {
 ```
 
 Output:
+
 ```
 Connecting to database...
 Database connected!
@@ -396,12 +421,12 @@ Disconnecting from database...
 
 ## Resources vs Actions vs Operations
 
-| Use Case | Tool |
-|----------|------|
-| One-time callback (setTimeout) | `action()` |
-| Async computation | Regular `function*` |
-| Long-running service with interaction | `resource()` |
-| Running concurrent child tasks | `spawn()` |
+| Use Case                              | Tool                |
+| ------------------------------------- | ------------------- |
+| One-time callback (setTimeout)        | `action()`          |
+| Async computation                     | Regular `function*` |
+| Long-running service with interaction | `resource()`        |
+| Running concurrent child tasks        | `spawn()`           |
 
 ---
 
@@ -411,13 +436,13 @@ Create `file-watcher.ts`:
 
 ```typescript
 // file-watcher.ts
-import type { Operation } from 'effection';
-import { main, resource, spawn, sleep, createChannel, each } from 'effection';
-import type { Channel } from 'effection';
+import type { Operation } from "effection";
+import { main, resource, spawn, sleep, createChannel, each } from "effection";
+import type { Channel } from "effection";
 
 // Simulated file system events
 interface FileEvent {
-  type: 'create' | 'modify' | 'delete';
+  type: "create" | "modify" | "delete";
   path: string;
 }
 
@@ -426,17 +451,17 @@ interface FileWatcher {
 }
 
 function useFileWatcher(directory: string): Operation<FileWatcher> {
-  return resource<FileWatcher>(function*(provide) {
+  return resource<FileWatcher>(function* (provide) {
     console.log(`Starting file watcher on ${directory}`);
 
     const events = createChannel<FileEvent, void>();
 
     // Simulate file system events
-    yield* spawn(function*(): Operation<void> {
+    yield* spawn(function* (): Operation<void> {
       const fakeEvents: FileEvent[] = [
-        { type: 'create', path: `${directory}/file1.txt` },
-        { type: 'modify', path: `${directory}/file2.txt` },
-        { type: 'delete', path: `${directory}/file3.txt` },
+        { type: "create", path: `${directory}/file1.txt` },
+        { type: "modify", path: `${directory}/file2.txt` },
+        { type: "delete", path: `${directory}/file3.txt` },
       ];
 
       for (const event of fakeEvents) {
@@ -448,16 +473,16 @@ function useFileWatcher(directory: string): Operation<FileWatcher> {
     try {
       yield* provide({ events });
     } finally {
-      console.log('File watcher stopped');
+      console.log("File watcher stopped");
     }
   });
 }
 
-await main(function*() {
-  const watcher: FileWatcher = yield* useFileWatcher('./src');
+await main(function* () {
+  const watcher: FileWatcher = yield* useFileWatcher("./src");
 
   // Process events for 2 seconds
-  yield* spawn(function*(): Operation<void> {
+  yield* spawn(function* (): Operation<void> {
     yield* sleep(2000);
   });
 
@@ -472,10 +497,12 @@ await main(function*() {
 
 ## Key Takeaways
 
-1. **Resources are for long-running services** - things that need to stay alive
-2. **`provide()` returns value AND suspends** - caller gets the value, resource stays alive
-3. **Cleanup is guaranteed** - finally block runs when parent scope ends
-4. **Resources compose** - resources can use other resources
+Resources are rental cars, not vending machines:
+
+1. **Resources are for long-running services** - things that need to stay alive while you use them
+2. **`provide()` hands over the keys AND keeps the engine running** - caller uses it, resource stays alive
+3. **Cleanup is guaranteed** - the car gets returned when the rental period (scope) ends
+4. **Resources compose** - rent a car that comes with a GPS (resources using resources)
 5. **Use `ensure()` for simple cleanup** - cleaner than try/finally for one-liners
 
 ---
