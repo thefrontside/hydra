@@ -99,7 +99,7 @@ await main(function* () {
 2. **Handles process signals** - Ctrl+C triggers graceful shutdown
 3. **Ensures cleanup** - guarantees all finally blocks run
 
-Use `run()` only when you need fine-grained control (like testing).
+Use `run()` when Effection is **not** the root of your program—for example, when embedding Effection into an existing Express server, test framework, or other async application that manages its own lifecycle. See [Chapter 11: Scope API](../11-scope-api/README.md) for patterns on bridging callback-based frameworks with Effection.
 
 ---
 
